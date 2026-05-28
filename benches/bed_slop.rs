@@ -6,7 +6,7 @@ use std::process::Command;
 
 const N_RECORDS: usize = 50_000;
 const CHROM_SIZE: u64 = 100_000_000;
-const SEED: u64 = 0x00510_50;
+const SEED: u64 = 0x0000_0051_0050;
 const SLOP: u64 = 1_000;
 
 fn xorshift(x: &mut u64) -> u64 {
