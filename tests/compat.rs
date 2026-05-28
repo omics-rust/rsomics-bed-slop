@@ -38,15 +38,21 @@ fn start_clamps_at_zero() {
     let mut out = Vec::new();
     slop(&input, &genome, &cfg, &mut out).unwrap();
     let result = String::from_utf8(out).unwrap();
-    // chr1:100-200 - 200 = 0 (clamped)
-    let lines: Vec<&str> = result.lines().filter(|l| l.starts_with("chr1\t")).collect();
-    let starts: Vec<u64> = lines
-        .iter()
-        .map(|l| l.split('\t').nth(1).unwrap().parse().unwrap())
-        .collect();
-    for s in &starts {
-        assert!(*s == 0, "start should be clamped to 0, got: {s}");
-    }
+    // chr1:100-200 extended by 200 left → 100-200 = negative, clamped to 0.
+    // chr2:50-150 extended by 200 left → 50-200 = negative, clamped to 0.
+    assert!(
+        result.contains("chr1\t0\t"),
+        "chr1 regionA start should be clamped to 0: {result}"
+    );
+    assert!(
+        result.contains("chr2\t0\t"),
+        "chr2 regionC start should be clamped to 0: {result}"
+    );
+    // chr1:900-950 extended by 200 left → 700 (not clamped, ≥ 0).
+    assert!(
+        result.contains("chr1\t700\t"),
+        "chr1 regionB start should be 700: {result}"
+    );
 }
 
 #[test]
