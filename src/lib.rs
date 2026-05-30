@@ -1,19 +1,7 @@
 //! Extend BED intervals by N bp on each side — bedtools slop equivalent.
 //!
-//! Each data record has its start decremented and end incremented by the
-//! requested amount, clamping start ≥ 0 and end ≤ chrom_size.
-//!
-//! Chromosome sizes are read from a two-column TSV (chrom\tsize), the same
-//! format bedtools accepts via `-g`. Comment lines (`#`) and blank lines in
-//! the genome file are ignored. Unknown chromosomes (not in genome file) are
-//! passed through unchanged with a warning to stderr, matching bedtools
-//! behaviour.
-//!
-//! Asymmetric extension (`-l` for left, `-r` for right) is supported. `-b N`
-//! sets both `-l N -r N`.
-//!
-//! Algorithm: O(N) streaming; the genome map is loaded into a HashMap keyed
-//! by chromosome name.
+//! Coordinates are clamped to [0, chrom_size]; unknown chromosomes pass through
+//! unchanged with a stderr warning (matches bedtools).
 
 use std::collections::HashMap;
 use std::io::{self, BufRead, BufReader, BufWriter, Write};
@@ -21,7 +9,6 @@ use std::path::Path;
 
 use rsomics_common::{Result, RsomicsError};
 
-/// Parse a two-column genome/chromsizes file into a {chrom → size} map.
 pub fn read_genome(path: &Path) -> Result<HashMap<String, u64>> {
     let data = std::fs::read_to_string(path)
         .map_err(|e| RsomicsError::InvalidInput(format!("{}: {e}", path.display())))?;
@@ -48,11 +35,9 @@ pub fn read_genome(path: &Path) -> Result<HashMap<String, u64>> {
 }
 
 pub struct SlopConfig {
-    /// Bases to extend left (5′) side.
     pub left: u64,
-    /// Bases to extend right (3′) side.
     pub right: u64,
-    /// Fraction mode: treat left/right as fractions of interval length.
+    /// When true, left/right are percentages of interval length rather than bp.
     pub pct: bool,
 }
 
@@ -66,7 +51,6 @@ impl SlopConfig {
     }
 }
 
-/// Extend BED intervals from `input`, clamped to `genome`, writing to `output`.
 pub fn slop(
     input: &Path,
     genome: &HashMap<String, u64>,
@@ -78,7 +62,6 @@ pub fn slop(
     slop_reader(BufReader::new(file), genome, cfg, output)
 }
 
-/// Same as [`slop`] but reads from stdin.
 pub fn slop_stdin(
     genome: &HashMap<String, u64>,
     cfg: &SlopConfig,
@@ -100,7 +83,6 @@ fn slop_reader<R: io::Read>(
         let line = line.map_err(RsomicsError::Io)?;
         let bytes = line.as_bytes();
 
-        // Pass through header and blank lines.
         if bytes.is_empty()
             || bytes[0] == b'#'
             || bytes.starts_with(b"track")
