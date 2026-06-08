@@ -69,6 +69,21 @@ fn extra_columns_preserved() {
     assert!(result.contains("regionB"), "name column lost: {result}");
 }
 
+// Byte-for-byte against output frozen from
+// `bedtools slop -i input.bed -g genome.txt -b 50` (bedtools v2.31.1). Always
+// runs so CI guards extension arithmetic, per-chrom clamping, and row order even
+// where bedtools is absent.
+#[test]
+fn matches_bedtools_golden() {
+    let genome = read_genome(&golden("genome.txt")).unwrap();
+    let cfg = SlopConfig::symmetric(50);
+    let mut out = Vec::new();
+    slop(&golden("input.bed"), &genome, &cfg, &mut out).unwrap();
+
+    let want = std::fs::read_to_string(golden("slop_b50.expected")).unwrap();
+    assert_eq!(String::from_utf8(out).unwrap(), want);
+}
+
 #[test]
 fn bedtools_compat() {
     let bedtools = Command::new("bedtools").arg("--version").output();
